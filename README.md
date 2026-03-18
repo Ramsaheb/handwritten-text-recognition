@@ -1,36 +1,61 @@
-# Dataset
-https://www.kaggle.com/datasets/ngkinwang/iam-dataset
+# Handwritten Text Recognition (Base Prototype)
 
-# Handwritten Text Images to Text Conversion Web App (Base Version)
+A FastAPI + HTML web app that predicts handwritten text from uploaded images using a CRNN model.
 
-This is a base FastAPI + HTML UI project for handwritten text recognition using a CRNN model.
+This is a base prototype focused on word-level recognition and end-to-end deployment workflow.
 
-## Base Version: What It Can Do
-- Serve a web UI for image upload and prediction.
-- Run inference from a `.pth` checkpoint in the `model/` folder.
-- Support decode modes: `greedy` and `beam`.
-- Return prediction output through API and UI.
-- Provide model status through `/model-status`.
-- Warn users when input looks like multi-line text or low-confidence output.
+## Highlights
+- FastAPI backend for inference API.
+- Clean web UI for upload and prediction.
+- Greedy and beam decoding options.
+- Runtime model status endpoint.
+- Multi-line input warning behavior for unsupported cases.
 
-## Base Version: What It Cannot Do (Yet)
-- It is not a full paragraph OCR model.
-- It is mainly trained for IAM-style word images (single-word crops).
-- Multi-line sentence images may produce partial or noisy text.
-- It does not include robust document text detection/segmentation like production OCR engines.
-- It does not auto-correct text using a language model.
+## Demo Screenshots
 
-## Recommended Input
-- Best: one handwritten word cropped tightly.
-- Good contrast between text and background.
-- Avoid large page images if you need accurate sentence-level transcription.
+### UI Overview
+![UI Overview](docs/screenshots/ui-overview.svg)
+
+### Example: Single-Word Prediction Output
+![Single Word Output](docs/screenshots/prediction-word.svg)
+
+### Example: Multi-line Warning Output
+![Multi-line Warning Output](docs/screenshots/prediction-multiline-warning.svg)
+
+## What This Prototype Can Do
+- Predict text for single handwritten word images.
+- Load a trained model checkpoint from the `model` folder.
+- Return prediction and warning messages through API and UI.
+- Provide model readiness info through `/model-status`.
+
+## Current Limitations
+- Not a full paragraph OCR system.
+- Trained mainly on IAM word-level samples.
+- Multi-line sentence images can return partial/noisy output.
+- No language-model post-correction.
+
+## Recommended Input for Best Results
+- One tightly cropped handwritten word.
+- High contrast and clean background.
+- Minimal blur/noise.
+
+## Dataset
+- IAM dataset: https://www.kaggle.com/datasets/ngkinwang/iam-dataset
+
+## Tech Stack
+- Python
+- FastAPI
+- PyTorch
+- Torchvision
+- Pillow
+- NumPy
 
 ## Project Structure
-- `app/main.py`: FastAPI app, model loading, decoding, and inference API.
+- `app/main.py`: FastAPI app, model loading, preprocessing, decoding, inference.
 - `ui/ui.html`: frontend upload and prediction UI.
-- `model/`: model weights/checkpoints for runtime.
-- `requirements.txt`: runtime dependencies.
+- `model/`: runtime model checkpoints (`.pth`, `.pt`).
 - `train_model.ipynb`: training and evaluation notebook.
+- `requirements.txt`: runtime dependencies.
 
 ## API Endpoints
 - `GET /`: serve UI page.
@@ -46,7 +71,7 @@ This is a base FastAPI + HTML UI project for handwritten text recognition using 
 pip install -r requirements.txt
 ```
 
-3. Put weights in `model/model.pth` (or `model/model_best.pth`).
+3. Put checkpoint file in the `model` folder.
 
 ## Run
 ```bash
@@ -57,16 +82,16 @@ Open:
 - http://127.0.0.1:8000/
 - http://127.0.0.1:8000/docs
 
-## Model Weights
-- Default path: `model/model.pth`
+## Model Path Behavior
+- Primary path: `model/model.pth`
 - Fallback path: `model/model_best.pth`
-- Optional override:
+- Optional override using environment variable:
 
 ```bash
 MODEL_WEIGHTS_PATH=/path/to/weights.pth
 ```
 
 ## Notes
-- Large data and model artifacts are ignored via `.gitignore`.
-- `train_model.ipynb` is kept for retraining and future improvements.
-- This repository is a base version; improve segmentation/modeling for production-level sentence OCR.
+- Large data and model artifacts are ignored using `.gitignore`.
+- `train_model.ipynb` is kept for retraining/future improvements.
+- This repository is a base version; production OCR needs stronger segmentation and line-level modeling.

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#f6efe2"/>
+  <rect x="40" y="40" width="1200" height="640" rx="20" fill="#fffaf2" stroke="#d7c5ad" stroke-width="3"/>
+  <text x="80" y="120" font-size="52" font-family="Segoe UI, Arial" fill="#3a2f24">Multi-line Input Warning Output</text>
+  <rect x="80" y="180" width="1120" height="180" rx="14" fill="#ffffff" stroke="#d7c5ad" stroke-width="2"/>
+  <text x="120" y="270" font-size="34" font-family="Segoe UI, Arial" fill="#b00020">Detected multi-line text. Upload one word at a time.</text>
+  <text x="80" y="450" font-size="30" font-family="Segoe UI, Arial" fill="#5b402b">Replace this file with your real warning screenshot:</text>
+  <text x="80" y="495" font-size="30" font-family="Consolas, monospace" fill="#b3541e">docs/screenshots/prediction-multiline-warning.png</text>
+</svg>

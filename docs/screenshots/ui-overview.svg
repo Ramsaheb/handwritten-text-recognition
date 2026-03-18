@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#f6efe2"/>
+  <rect x="40" y="40" width="1200" height="640" rx="20" fill="#fffaf2" stroke="#d7c5ad" stroke-width="3"/>
+  <rect x="40" y="40" width="1200" height="130" rx="20" fill="#5b402b"/>
+  <text x="80" y="110" font-size="56" font-family="Segoe UI, Arial" fill="#fffaf2">Handwritten Text Recognition</text>
+  <text x="80" y="160" font-size="28" font-family="Segoe UI, Arial" fill="#f5dfc8">UI Overview Screenshot Placeholder</text>
+  <text x="80" y="250" font-size="30" font-family="Segoe UI, Arial" fill="#5b402b">Replace this file with your real UI screenshot:</text>
+  <text x="80" y="295" font-size="30" font-family="Consolas, monospace" fill="#b3541e">docs/screenshots/ui-overview.png</text>
+</svg>
