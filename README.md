@@ -11,17 +11,6 @@ This is a base prototype focused on word-level recognition and end-to-end deploy
 - Runtime model status endpoint.
 - Multi-line input warning behavior for unsupported cases.
 
-## Demo Screenshots
-
-### UI Overview
-![UI Overview](docs/screenshots/ui-overview.svg)
-
-### Example: Single-Word Prediction Output
-![Single Word Output](docs/screenshots/prediction-word.svg)
-
-### Example: Multi-line Warning Output
-![Multi-line Warning Output](docs/screenshots/prediction-multiline-warning.svg)
-
 ## Interview Outputs
 
 Use these file paths for your interview screenshots:
