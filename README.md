@@ -22,6 +22,21 @@ This is a base prototype focused on word-level recognition and end-to-end deploy
 ### Example: Multi-line Warning Output
 ![Multi-line Warning Output](docs/screenshots/prediction-multiline-warning.svg)
 
+## Interview Outputs
+
+Use these file paths for your interview screenshots:
+
+- `docs/screenshots/interview-output-dear.png`
+- `docs/screenshots/interview-output-good.png`
+
+After adding those files, these previews will render automatically:
+
+### Interview Output 1 (Dear)
+![Interview Output Dear](docs/screenshots/interview-output-dear.png)
+
+### Interview Output 2 (Good)
+![Interview Output Good](docs/screenshots/interview-output-good.png)
+
 ## What This Prototype Can Do
 - Predict text for single handwritten word images.
 - Load a trained model checkpoint from the `model` folder.
