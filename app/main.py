@@ -5,7 +5,8 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+import numpy as np
 import torch
 import torch.nn as nn
 from torchvision import transforms
@@ -148,19 +149,169 @@ def beam_search_decode(log_probs, beam_width=5):
     return beams[0][0] if beams else ""
 
 
+def _preprocess_for_model(image: Image.Image) -> Image.Image:
+    # Keep preprocessing conservative so it improves noisy inputs without drifting from training distribution.
+    img = image.convert("L")
+    img = ImageOps.autocontrast(img, cutoff=2)
+    img = img.filter(ImageFilter.MedianFilter(size=3))
+    img = img.filter(ImageFilter.UnsharpMask(radius=1.2, percent=130, threshold=3))
+    img = ImageEnhance.Contrast(img).enhance(1.12)
+
+    arr = np.array(img)
+    ink_mask = arr < 235
+    ys, xs = np.where(ink_mask)
+    if ys.size > 0 and xs.size > 0:
+        y0, y1 = ys.min(), ys.max()
+        x0, x1 = xs.min(), xs.max()
+        h, w = arr.shape
+        pad_y = max(3, int(0.03 * h))
+        pad_x = max(3, int(0.03 * w))
+        y0 = max(0, y0 - pad_y)
+        y1 = min(h - 1, y1 + pad_y)
+        x0 = max(0, x0 - pad_x)
+        x1 = min(w - 1, x1 + pad_x)
+        img = img.crop((x0, y0, x1 + 1, y1 + 1))
+
+    border = max(4, int(0.04 * max(img.size)))
+    img = ImageOps.expand(img, border=border, fill=255)
+    return img
+
+
 def predict(image: Image.Image, decode_method: str = "greedy"):
     global _model
 
     if _model is None:
         _model = _load_model(get_weights_path())
 
-    img = transform(image).unsqueeze(0).to(device)
+    processed = _preprocess_for_model(image)
+    img = transform(processed).unsqueeze(0).to(device)
     with torch.no_grad():
         pred = _model(img)
 
     if decode_method == "beam":
         return beam_search_decode(pred.permute(1, 0, 2), beam_width=5)
     return decode(pred)
+
+
+def _find_segments_1d(signal, min_value, min_len):
+    segments = []
+    start = None
+    for i, v in enumerate(signal):
+        if v >= min_value and start is None:
+            start = i
+        elif v < min_value and start is not None:
+            if i - start >= min_len:
+                segments.append((start, i - 1))
+            start = None
+    if start is not None and len(signal) - start >= min_len:
+        segments.append((start, len(signal) - 1))
+    return segments
+
+
+def _merge_close_segments(segments, max_gap):
+    if not segments:
+        return []
+    merged = [segments[0]]
+    for s, e in segments[1:]:
+        ps, pe = merged[-1]
+        if s - pe <= max_gap:
+            merged[-1] = (ps, max(pe, e))
+        else:
+            merged.append((s, e))
+    return merged
+
+
+def _segment_word_crops(image: Image.Image):
+    gray = image.convert("L")
+    arr = np.array(gray)
+    h, w = arr.shape
+
+    # Simple adaptive threshold to estimate ink mask.
+    threshold = int(min(220, max(80, arr.mean() * 0.9)))
+    ink = arr < threshold
+
+    if ink.sum() < max(50, int(0.0008 * h * w)):
+        return []
+
+    row_signal = ink.sum(axis=1)
+    row_min = max(2, int(0.02 * w))
+    row_segments = _find_segments_1d(row_signal, row_min, min_len=6)
+    row_segments = _merge_close_segments(row_segments, max_gap=6)
+
+    crops = []
+    for r0, r1 in row_segments:
+        r0p = max(0, r0 - 4)
+        r1p = min(h - 1, r1 + 4)
+        line_ink = ink[r0p:r1p + 1, :]
+
+        col_signal = line_ink.sum(axis=0)
+        col_min = max(1, int(0.12 * (r1p - r0p + 1)))
+        col_segments = _find_segments_1d(col_signal, col_min, min_len=8)
+        col_segments = _merge_close_segments(col_segments, max_gap=max(8, int(0.015 * w)))
+
+        for c0, c1 in col_segments:
+            c0p = max(0, c0 - 3)
+            c1p = min(w - 1, c1 + 3)
+            if (c1p - c0p + 1) < 12 or (r1p - r0p + 1) < 10:
+                continue
+            crops.append(gray.crop((c0p, r0p, c1p + 1, r1p + 1)))
+
+    return crops
+
+
+def _looks_like_multiline_input(image: Image.Image) -> bool:
+    gray = image.convert("L")
+    arr = np.array(gray)
+    h, w = arr.shape
+    if h < 48 or w < 96:
+        return False
+
+    # Many sentence/note images are large compared to IAM word crops.
+    if h >= 160 and w >= 320:
+        return True
+
+    threshold = int(min(220, max(80, arr.mean() * 0.9)))
+    ink = arr < threshold
+    row_signal = ink.sum(axis=1)
+    row_min = max(2, int(0.02 * w))
+    row_segments = _find_segments_1d(row_signal, row_min, min_len=6)
+    row_segments = _merge_close_segments(row_segments, max_gap=6)
+    return len(row_segments) >= 2
+
+
+def predict_with_segmentation(image: Image.Image, decode_method: str = "greedy"):
+    word_crops = _segment_word_crops(image)
+    if not word_crops:
+        return "", 0
+
+    words = []
+    for crop in word_crops:
+        txt = predict(crop, decode_method=decode_method).strip()
+        if txt:
+            words.append(txt)
+
+    return " ".join(words), len(word_crops)
+
+
+def _looks_like_low_confidence_text(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return True
+
+    non_space = [c for c in stripped if not c.isspace()]
+    if not non_space:
+        return True
+
+    alpha_count = sum(c.isalpha() for c in non_space)
+    punct_count = sum((not c.isalnum()) for c in non_space)
+    alpha_ratio = alpha_count / len(non_space)
+    punct_ratio = punct_count / len(non_space)
+
+    # Heuristic gate: mostly punctuation/symbols usually indicates bad OCR for this model.
+    if alpha_ratio < 0.45 or punct_ratio > 0.35:
+        return True
+
+    return False
 
 @app.get("/")
 def home():
@@ -209,10 +360,43 @@ async def predict_text(file: UploadFile = File(...), decode_method: str = "greed
         raise HTTPException(status_code=400, detail="Unable to parse image file.") from exc
 
     try:
+        multiline_input = _looks_like_multiline_input(image)
         text = predict(image, decode_method=decode_method)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Prediction failed unexpectedly.") from exc
 
-    return {"prediction": text}
+    segmented_used = False
+    segments_found = 0
+    if not text.strip():
+        segmented_text, segments_found = predict_with_segmentation(image, decode_method=decode_method)
+        if segmented_text.strip():
+            text = segmented_text
+            segmented_used = True
+
+    warning = None
+    if segmented_used and _looks_like_low_confidence_text(text):
+        text = ""
+        warning = (
+            "Detected multi-line text, but output confidence is low for this model. "
+            "This model is trained on single-word crops. Please upload a tight crop of one word."
+        )
+    elif multiline_input and len(text.split()) <= 1:
+        warning = (
+            "Detected multi-line text. This model is trained on single-word crops, so output may be incomplete. "
+            "For better results, upload one word at a time."
+        )
+    elif not text.strip():
+        warning = (
+            "No text detected from this image. This model is trained for IAM word images; "
+            "for best results, upload a tight single-word crop with clear contrast."
+        )
+
+    return {
+        "prediction": text,
+        "warning": warning,
+        "decode_method": decode_method,
+        "segmentation_used": segmented_used,
+        "segments_found": segments_found,
+    }

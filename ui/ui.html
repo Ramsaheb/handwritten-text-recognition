@@ -386,8 +386,18 @@
 					throw new Error(data.detail || "Prediction request failed.");
 				}
 
-				result.textContent = data.prediction || "";
-				setStatus("Prediction complete.", "ok");
+				const prediction = (data.prediction || "").trim();
+				if (prediction) {
+					result.textContent = prediction;
+					if (data.warning) {
+						setStatus(data.warning, "err");
+					} else {
+						setStatus("Prediction complete.", "ok");
+					}
+				} else {
+					result.textContent = "(No text detected)";
+					setStatus(data.warning || "No text detected from this image.", "err");
+				}
 			} catch (err) {
 				result.textContent = "";
 				setStatus(err.message, "err");
