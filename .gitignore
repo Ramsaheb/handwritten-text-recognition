@@ -1,0 +1,31 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Large training data and artifacts
+data/
+test/
+model/last_checkpoint.pt
+model/model.pth
+model/model_best.pth
+*.pt
+*.pth
+*.ckpt
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs
+*.log
